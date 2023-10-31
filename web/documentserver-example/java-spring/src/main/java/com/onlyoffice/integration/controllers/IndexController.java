@@ -79,6 +79,12 @@ public class IndexController {
     @GetMapping("${url.index}")
     public String index(@RequestParam(value = "directUrl", required = false) final Boolean directUrl,
                         final Model model) {
+
+        model.addAttribute("info", "请提供Office文件地址");
+        if (true) {
+            return "info.html";
+        }
+
         java.io.File[] files = storageMutator.getStoredFiles();  // get all the stored files from the storage
         List<String> docTypes = new ArrayList<>();
         List<Boolean> filesEditable = new ArrayList<>();
