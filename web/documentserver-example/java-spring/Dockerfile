@@ -6,6 +6,8 @@
 
 # 使用 OpenJDK 11
 FROM openjdk:11-jre-slim
+# 设置时间为中国时区
+RUN echo "Asia/Shanghai" > /etc/timezone && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 # 设置工作目录
 WORKDIR /usr/app
 # 将 jar 文件复制到 Docker 镜像中
