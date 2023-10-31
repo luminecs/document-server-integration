@@ -1,3 +1,21 @@
+/**
+ *
+ * (c) Copyright Ascensio System SIA 2023
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.onlyoffice.integration.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,15 +42,17 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.io.InputStream;
 import java.net.URI;
-import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.List;
+import java.util.Optional;
 
 import static com.onlyoffice.integration.documentserver.util.Constants.ANONYMOUS_USER_ID;
 
@@ -70,11 +90,17 @@ public class HGController {
     private FileStorageMutator storageMutator;
 
     @GetMapping("/preview")
-    public String preview(@RequestParam(value = "fileName", required = false) String fileName,
-                          @RequestParam(value = "src", required = false) final String src,
+    public String preview(@RequestParam(value = "src", required = false) final String src,
                           @RequestParam(value = "actionLink", required = false) final String actionLink,
-                          @RequestParam(value = "directUrl", required = false, defaultValue = "false") final Boolean directUrl,
+                          @RequestParam(value = "directUrl", required = false,
+                                  defaultValue = "false") final Boolean directUrl,
                           final Model model) {
+        if (src == null || src.isEmpty()) {
+            model.addAttribute("info", "请提供Office文件地址");
+            return "info.html";
+        }
+
+        String fileName = "";
         String typeParam = "embedded";
         String actionParam = "embedded";
         Action action = Action.valueOf(actionParam);
@@ -96,7 +122,7 @@ public class HGController {
             fileName = downloadFile(src, hostAddress);
             storageMutator.createMeta(fileName, uid, user.getName());
         } catch (Exception e) {
-            model.addAttribute("info", "源文件下载异常");
+            model.addAttribute("info", e.getMessage());
             return "info.html";
         }
 
@@ -204,7 +230,8 @@ public class HGController {
         dataMailMergeRecipients.put("fileType", "csv");
         dataMailMergeRecipients.put("url", storagePathBuilder.getServerUrl(true) + "/csv");
         if (directUrl) {
-            dataMailMergeRecipients.put("directUrl", storagePathBuilder.getServerUrl(false) + "/csv");
+            dataMailMergeRecipients.put("directUrl",
+                    storagePathBuilder.getServerUrl(false) + "/csv");
         }
 
         // check if the document token is enabled
@@ -217,27 +244,29 @@ public class HGController {
         return objectMapper.writeValueAsString(dataMailMergeRecipients);
     }
 
-    public String downloadFile(String fileUrl, String outputFilePath) throws Exception {
+    public String downloadFile(final String fileUrl, final String outputFilePath) throws Exception {
         // http://192.168.60.59:4000/preview?src=https://www.inbreak.net/toolss/xcon/Attacking%20Java%20Web.pptx
         // http://192.168.60.59:4000/preview?src=http://www.dstang.com/java/ppt/2.ppt
-        // http://192.168.60.59:4000/preview?src=http://software.henu.edu.cn/__local/2/B2/4E/A03E010870E2CA31ACFA0FE4488_2D7506D5_2B0C.xlsx
+        // http://192.168.60.59:4000/preview
+        // ?src=http://software.henu.edu.cn/__local/2/B2/4E/A03E010870E2CA31ACFA0FE4488_2D7506D5_2B0C.xlsx
         // http://192.168.60.59:4000/preview?src=http://125.222.144.159/_uploadfile/201932713225.xls
         // http://192.168.60.59:4000/preview?src=http://cs.ujs.edu.cn/JavaProgrammingCH.doc
-        // http://192.168.60.59:4000/preview?src=https://rw.scau.edu.cn/_upload/article/files/f7/97/53d29e114eddbc02bb22d187b7e9/988a1058-b18c-4593-91af-c2470ea30d00.docx
+        // http://192.168.60.59:4000/preview
+        // ?src=https://rw.scau.edu.cn/_upload/article/files/f7/97
+        // /53d29e114eddbc02bb22d187b7e9/988a1058-b18c-4593-91af-c2470ea30d00.docx
         String filename = fileUrl.substring(fileUrl.lastIndexOf('/') + 1);
         String encodedFileName = filename.replace(" ", "%20");
-        fileUrl = fileUrl.replace("/" + filename, "/" + encodedFileName);
+        String fileRealUrl = fileUrl.replace("/" + filename, "/" + encodedFileName);
 
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(new URI(fileUrl))
+                .uri(new URI(fileRealUrl))
                 .build();
         HttpClient client = HttpClient.newHttpClient();
 
         HttpResponse<InputStream> response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
 
         if (!filename.contains(".")) {
-            // todo 统一文件单独处理
-            filename = UUID.randomUUID() + ".xlsx";
+            throw new RuntimeException("Office文件网址必须携带Office文件后缀");
         }
 
         String filepath = outputFilePath + filename;
