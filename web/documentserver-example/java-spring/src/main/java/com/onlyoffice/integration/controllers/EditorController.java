@@ -93,6 +93,12 @@ public class EditorController {
                         @CookieValue(value = "uid") final String uid,
                         @CookieValue(value = "ulang") final String lang,
                         final Model model) throws JsonProcessingException {
+
+        model.addAttribute("info", "请提供Office文件地址");
+        if (true) {
+            return "info.html";
+        }
+
         Action action = Action.edit;
         Type type = Type.desktop;
         Locale locale = new Locale("en");
