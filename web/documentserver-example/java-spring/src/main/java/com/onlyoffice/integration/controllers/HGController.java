@@ -269,6 +269,18 @@ public class HGController {
             throw new RuntimeException("Office文件网址必须携带Office文件后缀");
         }
 
+        // 处理统一文件重定向
+        // https://ufile160.in.hgzp.cn/ufile/app/srv/fileext/378f7fd3a08ffdae52b55391292511289e0b65e7.xls
+        // https://staticufile.in.hgzp.cn/app/imgsrv/378f7fd3a08ffdae52b55391292511289e0b65e7.xls
+        if (response.statusCode() == 302) {
+            Optional<String> locationHeader = response.headers().firstValue("Location");
+            if (locationHeader.isEmpty()) {
+                throw new RuntimeException("请求异常，无重定向地址");
+            }
+            request = HttpRequest.newBuilder().uri(new URI(locationHeader.get())).build();
+            response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
+        }
+
         String filepath = outputFilePath + filename;
         try (InputStream stream = response.body()) {
             Files.copy(stream, Path.of(filepath), StandardCopyOption.REPLACE_EXISTING);
