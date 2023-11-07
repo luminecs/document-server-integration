@@ -312,7 +312,7 @@ public class HGController {
             return false;
         }
         url = url.substring(0, url.indexOf("/"));
-        return url.contains(constraintDomain);
+        return url.endsWith(constraintDomain);
     }
 
 }
