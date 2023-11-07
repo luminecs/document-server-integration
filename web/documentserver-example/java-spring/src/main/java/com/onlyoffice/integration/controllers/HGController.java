@@ -131,7 +131,11 @@ public class HGController {
             fileName = downloadFile(src, hostAddress);
             storageMutator.createMeta(fileName, uid, user.getName());
         } catch (Exception e) {
-            model.addAttribute("info", e.getMessage());
+            String message = e.getMessage();
+            if (message == null || message.isBlank()) {
+                message = "预览失败！由于下载失败或者网络问题导致预览失败，请联系管理员或稍后再试。";
+            }
+            model.addAttribute("info", message);
             return "info.html";
         }
 
