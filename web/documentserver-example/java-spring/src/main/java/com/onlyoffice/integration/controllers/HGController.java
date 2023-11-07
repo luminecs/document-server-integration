@@ -53,6 +53,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
 import java.util.Optional;
+import java.util.Objects;
+
 
 import static com.onlyoffice.integration.documentserver.util.Constants.ANONYMOUS_USER_ID;
 
@@ -68,6 +70,9 @@ public class HGController {
 
     @Value("${files.docservice.languages}")
     private String langs;
+
+    @Value("${constraint.domain}")
+    private String constraintDomain;
 
     @Autowired
     private FileStoragePathBuilder storagePathBuilder;
@@ -97,6 +102,10 @@ public class HGController {
                           final Model model) {
         if (src == null || src.isEmpty()) {
             model.addAttribute("info", "请提供Office文件地址");
+            return "info.html";
+        }
+        if (!isDomainValid(src)) {
+            model.addAttribute("info", "只能加载域名 " + constraintDomain + " 下的文件");
             return "info.html";
         }
 
@@ -277,7 +286,11 @@ public class HGController {
             if (locationHeader.isEmpty()) {
                 throw new RuntimeException("请求异常，无重定向地址");
             }
-            request = HttpRequest.newBuilder().uri(new URI(locationHeader.get())).build();
+            String redirectUrl = locationHeader.get();
+            if (!isDomainValid(redirectUrl)) {
+                throw new RuntimeException("只能加载域名 " + constraintDomain + " 下的文件");
+            }
+            request = HttpRequest.newBuilder().uri(new URI(redirectUrl)).build();
             response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
         }
 
@@ -286,6 +299,20 @@ public class HGController {
             Files.copy(stream, Path.of(filepath), StandardCopyOption.REPLACE_EXISTING);
         }
         return filename;
+    }
+
+    public boolean isDomainValid(String url) {
+        if (Objects.equals(constraintDomain, "*")) {
+            return true;
+        }
+        url = url.replace("\\", "/")
+                .replace("http://", "")
+                .replace("https://", "");
+        if (!url.contains("/")) {
+            return false;
+        }
+        url = url.substring(0, url.indexOf("/"));
+        return url.contains(constraintDomain);
     }
 
 }
